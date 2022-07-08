@@ -1,6 +1,7 @@
 # Collection of optimizers for RBMs in pytorch
 #
 # Author: Alejandro Pozas-Kerstjens
+# Edited: Álvaro Huanay de Dios
 # Requires: pytorch as ML framework
 # Last modified: Jul, 2019
 
@@ -139,7 +140,7 @@ class Adam(Optimizer):
         self.first_call = True
         self.epoch = 0
 
-    def get_updates(self, vpos, vneg, weights, vbias, hbias, rbm_state_dict, batch_num, classical):
+    def get_updates(self, vpos, vneg, weights, vbias, hbias, rbm_state_dict, batch_num, classical, _ , p, epochs, qubo, sampler_auto):
         
         if self.first_call:
             self.m_W = torch.zeros_like(weights)
@@ -150,8 +151,54 @@ class Adam(Optimizer):
             self.v_h = torch.zeros_like(hbias)
             self.first_call = False
         
+        """
+        if (classical==False and _==epochs-1 and p>=50000):
+            #p: index of the image. The total is 60.000, leave the restant 3800 images to train with QA
+            #1 entire epoch requires 13 hours running that´s why only the last part is run by DWave
+            hpos = torch.sigmoid(linear(vpos, weights, hbias))
+            print("Intro quantum annealing...\n")
+            start_qa_process = timer()
+            vneg, hneg, wneg = quantum_annealing(rbm_state_dict, batch_num, qubo, sampler_auto)
+            end_qa_process = timer()
+            elapse=end_qa_process - start_qa_process
+            print("Time running quantum annealing process: \n", elapse)
             
-        if (classical==True):
+            deltah = hpos.mean(0) - hneg #Á: No mean porque las dimensiones ya están preparadas para que haga el cálculo
+            deltav = vpos.mean(0) - vneg #Á: Lo mismo
+            deltaW = (outer_product(hpos, vpos).mean(0)
+                      - wneg)            #Á: Lo mismo 
+
+        """ 
+        if (classical==False and _==epochs-1 and p>=59000):
+            #p: index of the image. The total is 60.000, leave the restant 3800 images to train with QA
+            #1 entire epoch requires 13 hours running that´s why only the last part is run by DWave
+            print("Intro quantum annealing...\n")
+            start_qa_process = timer()
+            #vneg, hneg, wneg = quantum_annealing(rbm_state_dict, batch_num, qubo, sampler_auto)
+            vneg = quantum_annealing(rbm_state_dict, batch_num, qubo, sampler_auto)
+            end_qa_process = timer()
+            elapse=end_qa_process - start_qa_process
+            print("Time running quantum annealing process: \n", elapse)
+            
+            hneg = torch.sigmoid(linear(vneg, weights, hbias))
+            hpos = torch.sigmoid(linear(vpos, weights, hbias))
+            deltah = hpos.mean(0) - hneg.mean(0) #Á: No mean porque las dimensiones ya están preparadas para que haga el cálculo
+            deltav = vpos.mean(0) - vneg #Á: Lo mismo
+            w=torch.zeros(hneg.size(0),vneg.size(0))
+            for j in range(hneg.size(0)):
+                for i in range(vneg.size(0)):
+                    w[j][i]=hneg[j]*vneg[i]
+            #print(hneg.size())
+            #print(vneg.size())
+            #print(hpos.size())
+            #print(vpos.size())
+            #print(outer_product(hpos, vpos).mean(0).size())
+            #print(outer_product(hpos, vpos).size())
+            #print(w.size())
+            deltaW = (outer_product(hpos, vpos).mean(0)
+                      - w)           #Á: Lo mismo 
+            
+        else:
             hneg = torch.sigmoid(linear(vneg, weights, hbias))
             #Á doubt: Es esto negative phase de hidden bias?
             #print(hneg.size()) #torch.Size([100, 300])
@@ -164,19 +211,7 @@ class Adam(Optimizer):
             deltaW = (outer_product(hpos, vpos).mean(0)
                       - outer_product(hneg, vneg).mean(0))
         
-        else:
-            hpos = torch.sigmoid(linear(vpos, weights, hbias))
-            print("Intro quantum annealing...\n")
-            start_qa_process = timer()
-            vneg, hneg, wneg = quantum_annealing(rbm_state_dict, batch_num, qubo=True)
-            end_qa_process = timer()
-            elapse=end_qa_process - start_qa_process
-            print("Time running quantum annealing process: \n", elapse)
-            
-            deltah = hpos.mean(0) - hneg #Á: No mean porque las dimensiones ya están preparadas para que haga el cálculo
-            deltav = vpos.mean(0) - vneg #Á: Lo mismo
-            deltaW = (outer_product(hpos, vpos).mean(0)
-                      - wneg)            #Á: Lo mismo
+
 
         #Á doubt: Es outer_product(hneg, vneg).mean(0) negative phase de weight?
         #Á doubt: Es vneg negative phase de visible bias?
@@ -233,7 +268,7 @@ class Adam(Optimizer):
         hbias_update = self.learning_rate * mnorm_h / (torch.sqrt(vnorm_h) + self.eps)
         
 
-        return W_update, vbias_update, hbias_update
+        return W_update, vbias_update, hbias_update, deltah, deltav, deltaW
 
 class AdaBound(Optimizer):
 

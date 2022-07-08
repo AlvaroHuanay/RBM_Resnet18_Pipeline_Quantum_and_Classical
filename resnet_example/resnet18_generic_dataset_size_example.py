@@ -2,7 +2,7 @@
 """
 Created on Sun May 22 18:24:52 2022
 
-@author: Alvar
+@author: Álvaro Huanay de Dios
 """
 
 import os
@@ -40,7 +40,7 @@ BATCH_SIZE = 128
 NUM_EPOCHS = 1
 
 # Architecture
-dataset_size=15
+dataset_size=7
 NUM_FEATURES = dataset_size*dataset_size
 NUM_CLASSES = 10
 
@@ -50,6 +50,8 @@ DEVICE = torch.device('cuda' if (gpu and torch.cuda.is_available()) else 'cpu') 
 device = torch.device('cuda' if (gpu and torch.cuda.is_available()) else 'cpu') #Á: torch device
 GRAYSCALE = True
 model_dir      = "resnet"+str(dataset_size)+"x"+str(dataset_size)+".h5"  
+cost_list=[]
+batch_list=[]
 
 ##########################
 ### MNIST DATASET
@@ -86,19 +88,25 @@ pre_trained = os.path.isfile(model_dir)
 
 # Checking the dataset
 for images, labels in train_loader: 
-    images=T.Resize(size=dataset_size)(images)
+    if (dataset_size!=28):
+        cut_images_data=torch.zeros(images.size(0),1, 20,20) #Á: Where is going to be stored the data
+        for i in range(images.size(0)):
+            cut_images_data[i][0]=images[i][0][5:25,5:25] #Á: Now we have a dataset 20x20 (deleted black pixels with no info)  
+        images=T.Resize(size=dataset_size)(cut_images_data) #Á: Now it is ([60000, dataset_size, dataset_size])
+    else:
+        continue
     print('Image batch dimensions:', images.shape)
     print('Image label dimensions:', labels.shape)
     break
 
-if (dataset_size!=28):
-    images=T.Resize(size=dataset_size)(images)
+
     
-print(images[0].size())
-example=images[0][0]
-pyplot.imshow(example, cmap=pyplot.get_cmap('gray'))
+    
+#print(images[0].size())
+#example=images[0][0]
+#pyplot.imshow(example, cmap=pyplot.get_cmap('gray'))
 #imshow only shows the last imshow (therefore only will be shown the image at the end of the code)
-pyplot.savefig("Input_resnet_sample"+str(dataset_size)+"x"+str(dataset_size)+".png")
+#pyplot.savefig("Input_resnet_sample"+str(dataset_size)+"x"+str(dataset_size)+".png")
 
 
 
@@ -113,7 +121,13 @@ for epoch in range(2):
         print(' | Batch index:', batch_idx, end='')
         print(' | Batch size:', y.size()[0])
         
-        x=T.Resize(size=dataset_size)(x).to(device)
+        if (dataset_size!=28):
+            cut_images_data=torch.zeros(x.size(0), 1, 20,20) #Á: Where is going to be stored the data
+            for i in range(x.size(0)):
+                cut_images_data[i][0]=x[i][0][5:25,5:25] #Á: Now we have a dataset 20x20 (deleted black pixels with no info)  
+            x=T.Resize(size=dataset_size)(cut_images_data).to(device) #Á: Now it is ([60000, dataset_size, dataset_size])
+        else:
+            x=x.to(device)
         #x = x.to(device)
         y = y.to(device)
         break
@@ -248,7 +262,14 @@ def compute_accuracy(model, data_loader, device):
     correct_pred, num_examples = 0, 0
     for i, (features, targets) in enumerate(data_loader):
             
-        features=T.Resize(size=dataset_size)(features).to(device)
+        if (dataset_size!=28):
+            cut_images_data=torch.zeros(features.size(0),1, 20,20) #Á: Where is going to be stored the data
+            for i in range(features.size(0)):
+                cut_images_data[i][0]=features[i][0][5:25,5:25] #Á: Now we have a dataset 20x20 (deleted black pixels with no info)  
+            features=T.Resize(size=dataset_size)(cut_images_data).to(device) #Á: Now it is ([60000, dataset_size, dataset_size])
+        #features=T.Resize(size=dataset_size)(features).to(device)
+        else:
+            features=features.to(device)
         #features = features.to(device)
         targets = targets.to(device)
 
@@ -257,7 +278,7 @@ def compute_accuracy(model, data_loader, device):
         num_examples += targets.size(0)
         correct_pred += (predicted_labels == targets).sum()
     return correct_pred.float()/num_examples * 100
-    
+
 
 # ----------------------- #
 # Check if trained or not #
@@ -283,7 +304,16 @@ if not pre_trained:
         model.train()
         for batch_idx, (features, targets) in enumerate(train_loader):
             
-            features=T.Resize(size=dataset_size)(features).to(DEVICE)
+            
+            if (dataset_size!=28):
+                cut_images_data=torch.zeros(features.size(0),1, 20,20) #Á: Where is going to be stored the data
+                for i in range(features.size(0)):
+                    cut_images_data[i][0]=features[i][0][5:25,5:25] #Á: Now we have a dataset 20x20 (deleted black pixels with no info)  
+                features=T.Resize(size=dataset_size)(cut_images_data).to(device) #Á: Now it is ([60000, dataset_size, dataset_size])
+            #features=T.Resize(size=dataset_size)(features).to(device)
+            else:
+                features=features.to(device)
+
             #features = features.to(DEVICE)
             targets = targets.to(DEVICE)
             #print(features.size())
@@ -298,10 +328,12 @@ if not pre_trained:
             optimizer.step()
             
             ### LOGGING
-            if not batch_idx % 50:
+            if not batch_idx % 20:
                 print ('Epoch: %03d/%03d | Batch %04d/%04d | Cost: %.4f' 
                        %(epoch+1, NUM_EPOCHS, batch_idx, 
                          len(train_loader), cost))
+                cost_list.append(cost.item())
+                batch_list.append(batch_idx)
     
             
     
@@ -317,7 +349,7 @@ if not pre_trained:
     
     torch.save(model.state_dict(), model_dir)
     
-    
+
     
 # ----------------------- #
 # Evaluation of the model #
@@ -330,16 +362,36 @@ with torch.set_grad_enabled(False): # save memory during inference
     
 for batch_idx, (features, targets) in enumerate(test_loader):
 
-    features_test_original=features
-    features=T.Resize(size=dataset_size)(features)
+    if (dataset_size!=28):
+        cut_images_data=torch.zeros(features.size(0),1, 20,20) #Á: Where is going to be stored the data
+        for i in range(features.size(0)):
+            cut_images_data[i][0]=features[i][0][5:25,5:25] #Á: Now we have a dataset 20x20 (deleted black pixels with no info)  
+        features=T.Resize(size=dataset_size)(cut_images_data).to(device) #Á: Now it is ([60000, dataset_size, dataset_size])
+    #features=T.Resize(size=dataset_size)(features).to(device)
+    else:
+        features=features.to(device)
+
+    #features_test_original=features
+    #features=T.Resize(size=dataset_size)(features)
     #features = features
     targets = targets
     break
 
-if (dataset_size!=28):
-    features=T.Resize(size=dataset_size)(features)
 
-    
+"""
+if (dataset_size!=28):
+    print("At the end features is", features.size())
+    cut_images_data=torch.zeros(features.size(0),1, 20,20) #Á: Where is going to be stored the data
+    for i in range(features.size(0)):
+        cut_images_data[i][0]=features[i][0][5:25,5:25] #Á: Now we have a dataset 20x20 (deleted black pixels with no info)  
+    features=T.Resize(size=dataset_size)(cut_images_data).to(device) #Á: Now it is ([60000, dataset_size, dataset_size])
+#features=T.Resize(size=dataset_size)(features).to(device)
+else:
+    features=features.to(device)
+"""
+model.eval()
+#Uncomment this. Example to determine number 7:
+"""
 print(features[0].size())
 example=features[0][0]
 pyplot.imshow(example, cmap=pyplot.get_cmap('gray'))
@@ -356,3 +408,15 @@ model.eval()
 for i in range(10):
     logits, probas = model(features.to(device)[0, None])
     print("Probability of being a "+str(i)+ " %.2f%%" % (probas[0][i]*100))
+""" 
+    
+"""
+plt.plot(batch_list, cost_list, 'r--o', markersize=0.2)
+plt.title("Resnet18 cost per batch")
+plt.xlabel("Batch")
+plt.ylabel("Cost")
+plt.legend(["Resnet18 28x28", "Resnet 18 7x7"])
+plt.locator_params(axis="y", nbins=10)
+#plt.legend(['W_update[0].mean(0).item()'])
+plt.savefig("Resnet18_"+str(dataset_size)+"x"+str(dataset_size)+"cost")
+"""
