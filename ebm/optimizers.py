@@ -151,7 +151,7 @@ class Adam(Optimizer):
             self.v_h = torch.zeros_like(hbias)
             self.first_call = False
         
-        """
+        
         if (classical==False and _==epochs-1 and p>=50000):
             #p: index of the image. The total is 60.000, leave the restant 3800 images to train with QA
             #1 entire epoch requires 13 hours running that´s why only the last part is run by DWave
@@ -168,7 +168,7 @@ class Adam(Optimizer):
             deltaW = (outer_product(hpos, vpos).mean(0)
                       - wneg)            #Á: Lo mismo 
 
-        """ 
+        """
         if (classical==False and _==epochs-1 and p>=59000):
             #p: index of the image. The total is 60.000, leave the restant 3800 images to train with QA
             #1 entire epoch requires 13 hours running that´s why only the last part is run by DWave
@@ -197,7 +197,8 @@ class Adam(Optimizer):
             #print(w.size())
             deltaW = (outer_product(hpos, vpos).mean(0)
                       - w)           #Á: Lo mismo 
-            
+        """
+        
         else:
             hneg = torch.sigmoid(linear(vneg, weights, hbias))
             #Á doubt: Es esto negative phase de hidden bias?

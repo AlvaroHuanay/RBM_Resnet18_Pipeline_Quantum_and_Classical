@@ -186,5 +186,5 @@ def quantum_annealing(rbm_state_dict,batch_num , qubo, sampler_auto):
         print(h_model.size())
         print(w_model.size())
 
-#    return v_model, h_model, w_model
-    return v_model
+    return v_model, h_model, w_model
+    #return v_model
