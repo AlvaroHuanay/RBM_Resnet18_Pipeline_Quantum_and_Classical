@@ -168,26 +168,27 @@ class Adam(Optimizer):
             deltaW = (outer_product(hpos, vpos).mean(0)
                       - wneg)            #Á: Lo mismo 
 
-        """
-        if (classical==False and _==epochs-1 and p>=59000):
+        
+
+        #if (classical==False and _==epochs-1 and p>=59000):
             #p: index of the image. The total is 60.000, leave the restant 3800 images to train with QA
             #1 entire epoch requires 13 hours running that´s why only the last part is run by DWave
-            print("Intro quantum annealing...\n")
-            start_qa_process = timer()
+            #print("Intro quantum annealing...\n")
+            #start_qa_process = timer()
             #vneg, hneg, wneg = quantum_annealing(rbm_state_dict, batch_num, qubo, sampler_auto)
-            vneg = quantum_annealing(rbm_state_dict, batch_num, qubo, sampler_auto)
-            end_qa_process = timer()
-            elapse=end_qa_process - start_qa_process
-            print("Time running quantum annealing process: \n", elapse)
+            #vneg = quantum_annealing(rbm_state_dict, batch_num, qubo, sampler_auto)
+            #end_qa_process = timer()
+            #elapse=end_qa_process - start_qa_process
+            #print("Time running quantum annealing process: \n", elapse)
             
-            hneg = torch.sigmoid(linear(vneg, weights, hbias))
-            hpos = torch.sigmoid(linear(vpos, weights, hbias))
-            deltah = hpos.mean(0) - hneg.mean(0) #Á: No mean porque las dimensiones ya están preparadas para que haga el cálculo
-            deltav = vpos.mean(0) - vneg #Á: Lo mismo
-            w=torch.zeros(hneg.size(0),vneg.size(0))
-            for j in range(hneg.size(0)):
-                for i in range(vneg.size(0)):
-                    w[j][i]=hneg[j]*vneg[i]
+            #hneg = torch.sigmoid(linear(vneg, weights, hbias))
+            #hpos = torch.sigmoid(linear(vpos, weights, hbias))
+            #deltah = hpos.mean(0) - hneg.mean(0) #Á: No mean porque las dimensiones ya están preparadas para que haga el cálculo
+            #deltav = vpos.mean(0) - vneg #Á: Lo mismo
+            #w=torch.zeros(hneg.size(0),vneg.size(0))
+            #for j in range(hneg.size(0)):
+            #    for i in range(vneg.size(0)):
+            #        w[j][i]=hneg[j]*vneg[i]
             #print(hneg.size())
             #print(vneg.size())
             #print(hpos.size())
@@ -195,10 +196,9 @@ class Adam(Optimizer):
             #print(outer_product(hpos, vpos).mean(0).size())
             #print(outer_product(hpos, vpos).size())
             #print(w.size())
-            deltaW = (outer_product(hpos, vpos).mean(0)
-                      - w)           #Á: Lo mismo 
-        """
-        
+            #deltaW = (outer_product(hpos, vpos).mean(0)
+            #          - w)           #Á: Lo mismo
+
         else:
             hneg = torch.sigmoid(linear(vneg, weights, hbias))
             #Á doubt: Es esto negative phase de hidden bias?

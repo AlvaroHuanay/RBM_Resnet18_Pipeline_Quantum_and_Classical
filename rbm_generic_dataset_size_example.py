@@ -40,7 +40,7 @@ from ebm.quantum_annealing import quantum_annealing
 hidd           = 50          # Number of nodes in the hidden layer
 #maximum hidden nodes for quantum annealing (with 49 visible nodes) 60
 learning_rate  = 1e-3         # Learning rate
-epochs         = 100           # Training epochs (4 minutes per epoch approx)
+epochs         = 50           # Training epochs (4 minutes per epoch approx)
 k              = 1            # Steps of Contrastive Divergence (CD)
 k_reconstruct  = 4000         # Steps of iteration during generation
 batch_size     = 32           # Batch size
